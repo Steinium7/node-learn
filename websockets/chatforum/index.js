@@ -1,6 +1,7 @@
 const http = require("http");
 const express = require("express");
 const ws = require("ws");
+const auth = require("./auth");
 const app = express();
 
 var serverWeb = http.createServer(app);
@@ -10,25 +11,30 @@ let server = new ws.Server({ server: serverWeb });
 
 let chat = [{ id: 1, data: "Hello" }];
 
-server.on("connection", (wsOne) => {
+server.on("connection", (wsOne, req) => {
     console.log("new Client Connected");
 
     wsOne.send(JSON.stringify(chat));
 
-    wsOne.on("message", (data) => {
-        data = data.toString("utf8");
-        data = data.split("|");
+    auth(req, null, () => {
+        wsOne.on("message", (data) => {
+            data = data.toString("utf8");
+            data = data.split("|");
 
-        if (!wsOne.id) wsOne.id = data[1];
+            if (!wsOne.id) wsOne.id = data[1];
 
-        let main = { id: chat.length + 1, data: data[0], name: wsOne.id };
-        chat.push(main);
-        wsOne.send("Done");
+            let main = { id: chat.length + 1, data: data[0], name: wsOne.id };
+            chat.push(main);
+            wsOne.send("Done");
 
-        server.clients.forEach((client) => {
-            if (client.readyState === ws.WebSocket.OPEN && client != wsOne) {
-                client.send(JSON.stringify(main));
-            }
+            server.clients.forEach((client) => {
+                if (
+                    client.readyState === ws.WebSocket.OPEN &&
+                    client != wsOne
+                ) {
+                    client.send(JSON.stringify(main));
+                }
+            });
         });
     });
 
